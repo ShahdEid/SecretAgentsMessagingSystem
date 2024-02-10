@@ -1,55 +1,42 @@
-//import java.io.*;
-//import java.net.*;
+import java.io.*;
+import java.net.*;
 //import java.security.*;
 //import java.util.*;
-//
-//public class Server {
-//
-//    private static final int port = 5678;
-//    private static Map<String, List<Message>> messageStore = new HashMap<>();
-//
-//    public static void main(String[] args) {
-//        try (ServerSocket serverSocket = new ServerSocket(port)) {
-//            System.out.println("Server is listening on port " + port);
-//
-//            while (true) {
-//                try (Socket socket = serverSocket.accept();
-//                     ObjectInputStream input = new ObjectInputStream(socket.getInputStream());
-//                     ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream())) {
-//
-//                    // Receive hashed user ID
-//                    String hashedUserId = (String) input.readObject();
-//
-//                    // Send number of messages for the user
-//                    List<Message> userMessages = messageStore.getOrDefault(hashedUserId, new ArrayList<>());
-//                    output.writeObject(userMessages.size());
-//
-//                    // Send messages to the client
-//                    for (Message message : userMessages) {
-//                        output.writeObject(message);
-//                    }
-//                    messageStore.remove(hashedUserId); // Clear sent messages
-//
-//                    // Receive and process a message from the client
-//                    Message incomingMessage = (Message) input.readObject();
-//                    processIncomingMessage(incomingMessage);
-//                } catch (ClassNotFoundException e) {
-//                    System.err.println("Class not found: " + e.getMessage());
-//                } catch (IOException e) {
-//                    System.err.println("I/O error: " + e.getMessage());
-//                }
-//            }
-//        } catch (IOException e) {
-//            System.err.println("Server exception: " + e.getMessage());
-//        }
-//    }
-//
-//    private static void processIncomingMessage(Message incomingMessage) {
-//        // Process and store the incoming message
-//        // You will need to implement the logic based on your assignment requirements
-//    }
-//
-//    static class Message implements Serializable {
-//        // Message class implementation
-//    }
-//}
+
+public class Server {
+    public static void main(String[] args) {
+        try {
+        ServerSocket ss= new ServerSocket(6666);
+        Socket s = ss.accept(); //establishes a connection
+
+            DataInputStream din = new DataInputStream(s.getInputStream());
+            DataOutputStream dout = new DataOutputStream(s.getOutputStream());
+
+            BufferedReader br = new BufferedReader(
+                    new InputStreamReader(System.in));
+
+            String serverString, clientString;
+            do {
+                clientString = din.readUTF(); //read the input from the client
+                System.out.println("client Says " + clientString); //print
+                if (clientString.equals("stop")) {
+                    break;
+                } //stop if "stop"
+
+                System.out.print("> "); //prompt user
+                serverString = br.readLine(); //read input
+                dout.writeUTF(serverString); //write it the outputstream
+                dout.flush(); //send
+            } while (!serverString.equals("stop")); //stop if "stop"
+
+            din.close(); //close datainputstream
+            dout.close(); //close dataoutputstream
+            s.close(); //close the socket
+            ss.close(); //close the server
+            } catch (Exception e) {
+            System.out.println(e);
+        }
+
+        }
+    }
+
