@@ -19,7 +19,7 @@ public class Server {
     //data structure to store msgs
     private static final HashMap<String, List<String>> messagesForUserHash = new HashMap<>();
 
-   //NumberofmsgsForUserHashed method
+    //NumberofmsgsForUserHashed method
     private static int getNumberOfMessagesForUserHash(String userHash) {
         List<String> messages = messagesForUserHash.get(userHash);
         return (messages != null) ? messages.size() : 0;
@@ -61,45 +61,67 @@ public class Server {
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             System.out.println("Server started. Waiting for a connection...");
 
-         //load server's prv key and use for all connections
+            //load server's prv key and use for all connections
             PrivateKey serverPrivateKey = loadServerPrivateKey("server.prv");
 
             while (true) {
                 Socket clientSocket = serverSocket.accept();
+                System.out.println("Client Connected");
+                // Handle client in a separate thread or here
                 try (DataInputStream din = new DataInputStream(clientSocket.getInputStream());
                      DataOutputStream dout = new DataOutputStream(clientSocket.getOutputStream())) {
 
-                    System.out.println("Client Connected");
-                    // Send a welcome message to the client
-                    dout.writeUTF("Welcome to the Server!");
-                    dout.flush();  // Ensure the message is sent immediately
+                    //keep the connection with the client open
+                    while (true) {
+                        // Send a welcome message to the client
+                        dout.writeUTF("Welcome to the Server!");
+                        dout.flush();  // Ensure the message is sent immediately
 
-                    //read the hashed UserID from client
-                    String hashedUserID = din.readUTF();
+                        //read the hashed UserID from client
+                        String hashedUserID = din.readUTF();
 
-                    // Here, instead of just getting the number of messages, you would store the received message
-                    int length = din.readInt();  // Read message length
-                    if (length > 0) {
-                        byte[] message = new byte[length];
-                        din.readFully(message); // Read the message
-
-                        // Decrypt the message and perform further processing...
-                        byte[] decryptedMessage = decrypt(message, serverPrivateKey);
-
-                        // Store the decrypted message in your messagesForUserHash
-                        List<String> userMessages = messagesForUserHash.computeIfAbsent(hashedUserID, k -> new ArrayList<>());
-                        userMessages.add(new String(decryptedMessage)); // Assuming it's a string message
-                    }
-
-                   // respond with number of msgs stored for this user
-                    int numberOfMessages = getNumberOfMessagesForUserHash(hashedUserID);
-                    dout.writeInt(numberOfMessages); // Send the number of messages back to the client
-                    dout.flush();
-
-                    // data structure to track messages for each user
-                  //  HashMap<String, List<String>> messagesForUserHash = new HashMap<>();
+                        // Determine how many messages are stored for the user
+                        int numberOfMessages = getNumberOfMessagesForUserHash(hashedUserID);
+                        System.out.println("Number of messages for user " + hashedUserID + ": " + numberOfMessages);
+                        dout.writeInt(numberOfMessages); // Send the number of messages
+                        dout.flush();
 
 
+                        // Respond to the client with the number of messages
+                        dout.writeInt(numberOfMessages);
+                        dout.flush();
+
+
+                        // Here, instead of just getting the number of messages, you would store the received message
+//                    int length = din.readInt();  // Read message length
+//                    if (length > 0) {
+//                        byte[] message = new byte[length];
+//                        din.readFully(message); // Read the message
+
+
+                        if (numberOfMessages > 0) {
+                            // Read the message length
+                            int length = din.readInt();
+                            byte[] message = new byte[length];
+                            din.readFully(message); // Read the message
+                            // Decrypt the message and perform further processing...
+                            byte[] decryptedMessage = decrypt(message, serverPrivateKey);
+
+                            // Store the decrypted message in your messagesForUserHash
+                            List<String> userMessages = messagesForUserHash.computeIfAbsent(hashedUserID, k -> new ArrayList<>());
+                            userMessages.add(new String(decryptedMessage)); // Assuming it's a string message
+                        }
+
+
+//                    // respond with number of msgs stored for this user
+//                    int numberOfMessages = getNumberOfMessagesForUserHash(hashedUserID); // Calculate number of messages
+//                    System.out.println("Number of messages for user " + hashedUserID + ": " + numberOfMessages);
+//                    dout.writeInt(numberOfMessages); // Send the number of messages
+//                    dout.flush();
+
+
+                        // data structure to track messages for each user
+                        // HashMap<String, List<String>> messagesForUserHash = new HashMap<>(); //commented out because it is redeclaring and clearing messages on each connection
 
 
 //                    // The server is now prepared to read the incoming encrypted message from the client
@@ -109,8 +131,14 @@ public class Server {
 //                        din.readFully(message); // Read the message
 //                        // Decrypt the message and perform further processing...
 //                    }
-                    // After processing the message, you can send back a response to the client if needed
+                        // After processing the message, you can send back a response to the client if needed
 
+                        String command = din.readUTF();
+                         if ("CLOSE".equals(command)) {
+                             break; // Exit the loop and close this connection
+                         }
+
+                    }
                 } catch (IOException e) {
                     System.out.println("Error handling client: " + e.getMessage());
                 } finally {
