@@ -16,7 +16,7 @@ import java.util.ArrayList;
 
 public class Server {
 
-    //data structure to store msgs
+    //data structure to store messages
     private static final HashMap<String, List<String>> messagesForUserHash = new HashMap<>();
 
     //NumberofmsgsForUserHashed method
