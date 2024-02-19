@@ -113,32 +113,41 @@ public class Client {
                 System.out.println("Message " + (i + 1) + ": " + decryptedMessage);
             }
 
-            String prompt = din.readUTF();
-            System.out.println(prompt);
-            String userInput = br.readLine();
-            dout.writeUTF(userInput);
-            dout.flush();
+            boolean continueSending = true; // Flag to control the loop
+            boolean firstMessage = true;
+            while (continueSending) {
+                // Determine the prompt based on whether it's the first message or not
+                String prompt = firstMessage ? "Do you want to send a message? [y/n]" : "Do you want to send another message? [y/n]";
+                System.out.println(prompt); // Show prompt to the user
+                String userInput = br.readLine(); // Read user input
 
-            if ("y".equalsIgnoreCase(userInput)) {
-
-                System.out.print("Enter your message: ");
-                String clientMessage = br.readLine();
-
-                System.out.print("Enter User ID of recipient: ");
-                String recipientUserID = br.readLine();
-                byte[] encryptedMessage = encrypt(clientMessage, serverPublicKey);
-
-                dout.writeUTF(recipientUserID); // Send recipient's UserID
-                System.out.println("Debug: Recipient's user ID sent: " + recipientUserID); // Debug statement
-
-                dout.writeInt(encryptedMessage.length);
-                dout.write(encryptedMessage);
+                // Send the response to the server (if your server expects this every time)
+                dout.writeUTF(userInput);
                 dout.flush();
-                System.out.println("Debug: Encrypted message sent."); // Debug statement
 
+                if ("y".equalsIgnoreCase(userInput)) {
+                    // It's no longer the first message
+                    firstMessage = false;
 
-            } else if ("n".equalsIgnoreCase(userInput)) {
+                    // User wants to send a message
+                    System.out.print("Enter your message: ");
+                    String clientMessage = br.readLine(); // Read the message from the user
 
+                    System.out.print("Enter User ID of recipient: ");
+                    String recipientUserID = br.readLine(); // Read recipient user ID from the user
+
+                    // Encrypt the message with the server's public key and send it along with the recipient's UserID
+                    byte[] encryptedMessage = encrypt(clientMessage, serverPublicKey);
+                    dout.writeUTF(recipientUserID);
+                    dout.writeInt(encryptedMessage.length);
+                    dout.write(encryptedMessage);
+                    dout.flush();
+                    System.out.println("Message sent.");
+                } else if ("n".equalsIgnoreCase(userInput)) {
+                    continueSending = false; // User does not want to send more messages
+                } else {
+                    System.out.println("Invalid input. Please enter 'y' to send a message or 'n' to quit.");
+                }
             }
             br.close();
             dout.close();
