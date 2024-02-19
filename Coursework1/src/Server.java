@@ -62,7 +62,6 @@ public class Server {
 
     public static PublicKey loadClientPublicKeyByUsername(String username) throws Exception {
         String publicKeyFilename = username + ".pub"; // Construct the filename with the username
-        System.out.println("Loading public key from file: " + publicKeyFilename);
         byte[] keyBytes = Files.readAllBytes(Paths.get(publicKeyFilename));
         X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
         KeyFactory kf = KeyFactory.getInstance("RSA");
@@ -70,7 +69,6 @@ public class Server {
     }
 
     public static void storeMessage(String recipientHashedId, String message) {
-        System.out.println("storing message for recipientHashedID: " + recipientHashedId + "Message: " + message);
         messagesForUserHash.computeIfAbsent(recipientHashedId, k -> new ArrayList<>()).add(message);
     }
     public static List<String> retrieveMessages(String userHashedId) {
@@ -139,46 +137,52 @@ public class Server {
 
                     dout.writeUTF("Do you want to send a message? [y/n]");
                     dout.flush();
+                    boolean moreMessages = true;
+                    while (moreMessages) {
+                        dout.writeUTF("Do you want to send a message? [y/n]");
+                        dout.flush();
 
-                    String clientResponse = din.readUTF();
+                        String clientResponse = din.readUTF();
 
-                    if ("y".equalsIgnoreCase(clientResponse)) {
-                        String recipientUsername = din.readUTF();
-                        String recipientHashedID = usernameToHashedId.get(recipientUsername);
-                        String actualRecipientUsername = getUsernameFromHashedId(recipientHashedID);
-                        PublicKey recipientPublicKey = loadClientPublicKeyByUsername(recipientUsername);
-                        // Get the actual username of the sender
-                        String senderUsername = getUsernameFromHashedId(hashedUserID);
+                        if ("y".equalsIgnoreCase(clientResponse)) {
+                            String recipientUsername = din.readUTF();
+                            String recipientHashedID = usernameToHashedId.get(recipientUsername);
+                            String actualRecipientUsername = getUsernameFromHashedId(recipientHashedID);
+                            PublicKey recipientPublicKey = loadClientPublicKeyByUsername(recipientUsername);
+                            // Get the actual username of the sender
+                            String senderUsername = getUsernameFromHashedId(hashedUserID);
 
-                        if (recipientHashedID != null) {
-                            int messageLength = din.readInt();
-                            byte[] encryptedMessage = new byte[messageLength];
-                            din.readFully(encryptedMessage);
+                            if (recipientHashedID != null) {
+                                int messageLength = din.readInt();
+                                byte[] encryptedMessage = new byte[messageLength];
+                                din.readFully(encryptedMessage);
 
-                            byte[] decryptedMessage = decrypt(encryptedMessage, serverPrivateKey);
-                            String messageContent = new String(decryptedMessage);
+                                byte[] decryptedMessage = decrypt(encryptedMessage, serverPrivateKey);
+                                String messageContent = new String(decryptedMessage);
 
-                            // print the required info
-                            System.out.println("incoming message from " + senderUsername);
-                            System.out.println("recipient: " + recipientUsername);
-                            System.out.println("message: " + messageContent);
+                                // print the required info
+                                System.out.println("incoming message from " + senderUsername);
+                                System.out.println("recipient: " + recipientUsername);
+                                System.out.println("message: " + messageContent);
 
 
-                            byte[] messageBytes = messageContent.getBytes();
-                            byte[] encryptedForRecipient = encrypt(messageContent.getBytes(), recipientPublicKey); // Re-encrypt the message with the recipient's public key
+                                byte[] messageBytes = messageContent.getBytes();
+                                byte[] encryptedForRecipient = encrypt(messageContent.getBytes(), recipientPublicKey); // Re-encrypt the message with the recipient's public key
 
-                            String encryptedMessageBase64 = Base64.getEncoder().encodeToString(encryptedForRecipient);
+                                String encryptedMessageBase64 = Base64.getEncoder().encodeToString(encryptedForRecipient);
 
-                            storeMessage(recipientHashedID, Base64.getEncoder().encodeToString(encryptedForRecipient)); // Store the re-encrypted message instead of plaintext
-                            dout.writeUTF("Message received and stored for " + recipientUsername);
-                            dout.flush();
+                                storeMessage(recipientHashedID, Base64.getEncoder().encodeToString(encryptedForRecipient)); // Store the re-encrypted message instead of plaintext
+                                dout.writeUTF("Message received and stored for " + recipientUsername);
+                                dout.flush();
+                            } else {
+                                System.out.println("Recipient username not recognized: " + recipientUsername);
+                                dout.writeUTF("Recipient username not recognized.");
+                                dout.flush();
+                            }
                         } else {
-                            System.out.println("Recipient username not recognized: " + recipientUsername);
-                            dout.writeUTF("Recipient username not recognized.");
-                            dout.flush();
+                            moreMessages = false; // Exit the loop if the client does not want to send more messages
+                            System.out.println("Client does not want to send more messages");
                         }
-                    } else {
-                        System.out.println("Client does not want to send a message");
                     }
 
                 } catch (IOException e) {
@@ -191,6 +195,4 @@ public class Server {
             e.printStackTrace();
         }
     }
-
-
 }
